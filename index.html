@@ -202,6 +202,18 @@
   .wc-word-chip.pos { background: rgba(62,217,160,0.18); color: #8CF0C6; }
   .wc-word-chip.neg { background: rgba(255,107,122,0.18); color: #FF9FAA; }
 
+  /* ---------- Raw data viewer ---------- */
+  .data-toggle-row { margin-top: 14px; }
+  .data-viewer { margin-top: 10px; max-height: 380px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
+  .dv-row { display: flex; gap: 10px; align-items: flex-start; padding: 9px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; line-height: 1.45; }
+  .dv-row:last-child { border-bottom: none; }
+  .dv-row:nth-child(even) { background: var(--surface-2); }
+  .dv-idx { flex-shrink: 0; width: 22px; color: var(--ink-dim); font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; padding-top: 2px; text-align: right; }
+  .dv-label { flex-shrink: 0; font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 99px; margin-top: 1px; white-space: nowrap; }
+  .dv-label.pos { background: var(--positive-soft); color: var(--positive); }
+  .dv-label.neg { background: var(--negative-soft); color: var(--negative); }
+  .dv-text { color: var(--ink); flex: 1; }
+
   /* ---------- Bring-your-own-dataset panel ---------- */
   .custom-panel { display: none; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 10px; padding: 18px; margin-top: 12px; box-shadow: var(--shadow); }
   .custom-panel.show { display: block; }
@@ -238,6 +250,11 @@
     <div class="ex-row"><span class="ex-tag">HOW</span><span class="ex-text">Under the hood this is literally an array: <span class="mono">[["great stay", "positive"], ["awful service", "negative"], ...]</span></span></div>
   </div>
   <div class="dataset-grid" id="datasetGrid"></div>
+
+  <div class="data-toggle-row">
+    <button class="btn-ghost" id="dataViewToggle" type="button">&#128065; View the raw sentences</button>
+  </div>
+  <div class="data-viewer" id="dataViewer" style="display:none;"></div>
 
   <div class="custom-panel" id="customPanel">
     <div class="cp-hint">Building your own classifier for an assignment? Pick any real yes/no distinction you care about - spam vs. not spam, formal vs. casual, on-topic vs. off-topic, your own two categories - and add real examples of each below. <b>Remember the lecture's own lesson:</b> fewer than ~15-20 examples per class and you'll likely see the same instability the 20-sentence starter set showed. That's not a failure - it's the point.</div>
@@ -565,6 +582,7 @@ function renderDatasetGrid() {
       state.trained = false;
       renderDatasetGrid();
       renderResults();
+      renderDataViewToggle();
       document.getElementById("customPanel").className = "custom-panel" + (ds.isCustom ? " show" : "");
       document.getElementById("retrainBtn").style.display = "none";
       document.getElementById("trainStatus").textContent = "";
@@ -573,6 +591,50 @@ function renderDatasetGrid() {
     });
     grid.appendChild(card);
   });
+}
+
+// ============================================================
+// Raw data viewer - let students see the actual sentences,
+// not just a card that says "20 labeled examples"
+// ============================================================
+function renderDataViewToggle() {
+  var ds = DATASETS[state.datasetKey];
+  var btn = document.getElementById("dataViewToggle");
+  var viewer = document.getElementById("dataViewer");
+  viewer.style.display = "none";
+  viewer.innerHTML = "";
+  btn.dataset.open = "false";
+  if (ds.isCustom) {
+    btn.style.display = "none";
+    return;
+  }
+  btn.style.display = "inline-flex";
+  btn.innerHTML = "&#128065; View the " + ds.data.length + " raw sentences";
+}
+
+function toggleDataViewer() {
+  var ds = DATASETS[state.datasetKey];
+  if (ds.isCustom) return;
+  var btn = document.getElementById("dataViewToggle");
+  var viewer = document.getElementById("dataViewer");
+  var isOpen = btn.dataset.open === "true";
+  if (isOpen) {
+    viewer.style.display = "none";
+    btn.innerHTML = "&#128065; View the " + ds.data.length + " raw sentences";
+    btn.dataset.open = "false";
+    return;
+  }
+  if (!viewer.innerHTML) {
+    viewer.innerHTML = ds.data.map(function (d, i) {
+      var isPos = d.label === 1;
+      return '<div class="dv-row"><span class="dv-idx">' + (i + 1) + '</span>' +
+        '<span class="dv-label ' + (isPos ? "pos" : "neg") + '">' + (isPos ? "Positive" : "Negative") + "</span>" +
+        '<span class="dv-text">' + esc(d.text) + "</span></div>";
+    }).join("");
+  }
+  viewer.style.display = "block";
+  btn.innerHTML = "&#9650; Hide raw sentences";
+  btn.dataset.open = "true";
 }
 
 // ============================================================
@@ -887,8 +949,10 @@ document.getElementById("classifyBtn").addEventListener("click", classifyCurrent
 document.getElementById("sentenceInput").addEventListener("keydown", function (e) { if (e.key === "Enter") classifyCurrentSentence(); });
 document.getElementById("customPosInput").addEventListener("input", updateCustomCounts);
 document.getElementById("customNegInput").addEventListener("input", updateCustomCounts);
+document.getElementById("dataViewToggle").addEventListener("click", toggleDataViewer);
 
 renderDatasetGrid();
+renderDataViewToggle();
 renderExampleChips();
 trainNow();
 </script>
